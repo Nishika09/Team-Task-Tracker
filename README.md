@@ -282,6 +282,14 @@ All API errors follow a consistent structure:
 ```
 
 ---
+Testing Strategy
+
+Critical flows covered:
+
+- RBAC enforcement
+- Task workflow validation
+
+Example test cases documented in Postman collection.
 
 ## Postman Collection
 
