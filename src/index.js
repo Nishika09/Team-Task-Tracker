@@ -7,7 +7,11 @@ const taskRoutes = require('./routes/taskRoutes');
 
 const errorHandler =
     require('./middleware/errorMiddleware');
-
+const {
+    connectRedis
+} = require(
+    './config/redis'
+);
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
@@ -16,8 +20,23 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT;
 
-app.listen(PORT, () => {
-    console.log(`App listening on port ${PORT}`);
-})
+// app.listen(PORT, () => {
+//     console.log(`App listening on port ${PORT}`);
+// })
 
+
+(async () => {
+
+    await connectRedis();
+
+    app.listen(
+        PORT,
+        () => {
+            console.log(
+                `Server running on ${PORT}`
+            );
+        }
+    );
+
+})();
 module.exports = app;

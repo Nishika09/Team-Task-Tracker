@@ -1,6 +1,10 @@
 const taskRepository =
     require('../repositories/taskRepository');
-
+const {
+    redisClient
+} = require(
+    '../config/redis'
+);
 const allowedTransitions = {
     TODO: [
         'IN_PROGRESS',
@@ -71,7 +75,9 @@ const createTask = async (
                 user.organizationId,
             status: 'TODO'
         });
-
+    await redisClient.del(
+        `tasks:assignee:${task.assignee_id}`
+    );
     return {
         id: taskId
     };
@@ -90,6 +96,19 @@ const getTasks = async (
         assigneeId
     } = queryParams;
 
+    const cacheKey =
+        `tasks:assignee:${filters.assigneeId || user.userId}`;
+    const cached =
+        await redisClient.get(
+            cacheKey
+        );
+
+    if (cached) {
+
+        return JSON.parse(
+            cached
+        );
+    }
     const result =
         await taskRepository.getTasks(
             {
@@ -108,6 +127,14 @@ const getTasks = async (
             Number(page),
             Number(limit)
         );
+
+    await redisClient.set(
+        cacheKey,
+        JSON.stringify(result),
+        {
+            EX: 300
+        }
+    );
 
     return result;
 };
@@ -165,6 +192,10 @@ const updateTaskStatus = async (
             taskId,
             newStatus
         );
+
+    await redisClient.del(
+        `tasks:assignee:${task.assignee_id}`
+    );
 
     return {
         message:
@@ -225,16 +256,71 @@ const deleteTask = async (
         );
     }
 
+    await redisClient.del(
+        `tasks:assignee:${task.assignee_id}`
+    );
     await taskRepository.deleteTask(
         taskId
     );
 
     return;
 };
+
+const assignTask = async (
+    taskId,
+    assigneeId,
+    user
+) => {
+
+    const task =
+        await taskRepository.getTaskById(
+            taskId
+        );
+
+    if (!task) {
+
+        throw new Error(
+            'Task not found'
+        );
+    }
+
+    const assignee =
+        await userRepository.getUserById(
+            assigneeId
+        );
+
+    if (!assignee) {
+
+        throw new Error(
+            'Assignee not found'
+        );
+    }
+
+    if (
+        assignee.organization_id !==
+        user.organizationId
+    ) {
+
+        throw new Error(
+            'Assignee must belong to same organization'
+        );
+    }
+
+    await taskRepository.assignTask(
+        taskId,
+        assigneeId
+    );
+
+    return {
+        message:
+            'Task assigned successfully'
+    };
+};
 module.exports = {
     createTask,
     getTasks,
     updateTaskStatus,
     deleteTask,
-    getTaskById
+    getTaskById,
+    assignTask
 };

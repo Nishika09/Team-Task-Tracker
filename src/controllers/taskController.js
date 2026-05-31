@@ -127,10 +127,35 @@ const deleteTask = async (
         next(error);
     }
 };
+const assignTask = async (
+    req,
+    res,
+    next
+) => {
+
+    try {
+
+        const result =
+            await taskService.assignTask(
+                req.params.id,
+                req.body.assigneeId,
+                req.user
+            );
+
+        res.status(200).json({
+            status: 'success',
+            data: result
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
 module.exports = {
     createTask,
     getTasks,
     updateTaskStatus,
     deleteTask,
-    getTaskById
+    getTaskById,
+    assignTask
 };

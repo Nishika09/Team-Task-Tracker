@@ -202,10 +202,31 @@ const deleteTask = async (
         [taskId]
     );
 };
+
+const assignTask = async (
+    taskId,
+    assigneeId
+) => {
+
+    const query = `
+        UPDATE tasks
+        SET assignee_id = ?
+        WHERE id = ?
+    `;
+
+    await pool.execute(
+        query,
+        [
+            assigneeId,
+            taskId
+        ]
+    );
+};
 module.exports = {
     createTask,
     getTasks,
     updateTaskStatus,
     getTaskById,
-    deleteTask
+    deleteTask,
+    assignTask
 };

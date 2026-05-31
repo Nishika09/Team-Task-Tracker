@@ -12,4 +12,13 @@ router.get('/', authenticate, authorize('ADMIN', 'MANAGER'), taskController.getT
 router.patch('/:id/status', authenticate, taskController.updateTaskStatus);
 router.get('/:id', authenticate, taskController.getTaskById);
 router.delete('/:id', authenticate, authorize('ADMIN', 'MANAGER'), taskController.deleteTask);
+router.patch(
+    '/:id/assign',
+    authenticate,
+    authorize(
+        'ADMIN',
+        'MANAGER'
+    ),
+    taskController.assignTask
+);
 module.exports = router;
