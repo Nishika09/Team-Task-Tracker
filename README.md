@@ -1,86 +1,151 @@
-## Database Schema
+# Team Task Tracker API
 
-organizations
+A RESTful backend API for managing tasks within an organization. The application supports authentication, role-based access control (RBAC), task lifecycle management, Redis caching, and Docker-based deployment.
 
-* id (PK)
-* name
+## Features
 
-users
+### Authentication & Authorization
 
-* id (PK)
-* organization_id (FK → organizations.id)
-* name
-* email
-* password
-* role
+* User Registration
+* User Login
+* JWT Access Tokens
+* Refresh Token Rotation
+* Role-Based Access Control (RBAC)
 
-refresh_tokens
+Supported Roles:
 
-* id (PK)
-* user_id (FK → users.id)
-* token
+* ADMIN
+* MANAGER
+* MEMBER
 
-tasks
+### Task Management
 
-* id (PK)
-* organization_id (FK → organizations.id)
-* title
-* description
-* priority
-* status
-* assignee_id (FK → users.id)
-* due_date
-* created_at
-
-Indexes:
-
-* status
-* assignee_id
-* due_date
-
-## Database Design Decision
-
-Indexes were added on status, assignee_id, and due_date because these fields are frequently used in filtering and task retrieval operations.
-
-This reduces full table scans and improves query performance as the number of tasks grows.
-
-## Caching Strategy
-
-Task lists are cached in Redis using keys in the format:
-
-tasks:assignee:<assigneeId>
-
-TTL: 5 minutes
-
-Cache Invalidation:
-
-* Task Creation
-* Task Deletion
-* Task Status Update
-* Task Reassignment
-
-Whenever one of these operations occurs, the relevant cache entries are removed to prevent stale data from being served.
-
-## API Testing
-
-A Postman collection is included in the repository:
-
-postman/Team_Task_Tracker.postman_collection.json
-
-Import the collection into Postman and use the provided requests to test the API.
-
-The collection includes:
-
-* Register
-* Login
-* Refresh Token
-* Create Task
-* Get Tasks
-* Get Task By Id
-* Assign Task
+* Create Tasks
+* View Tasks
+* View Task Details
+* Delete Tasks
+* Assign Tasks
 * Update Task Status
-* Delete Task
 
+Supported Status Flow:
+
+TODO → IN_PROGRESS → IN_REVIEW → DONE
+
+BLOCKED can be reached from any active state.
+
+### Task Listing
+
+Supports:
+
+* Pagination
+* Status Filtering
+* Priority Filtering
+* Assignee Filtering
+
+### Caching
+
+Redis caching is implemented for task listing endpoints.
+
+### Containerization
+
+The entire application can be started using Docker Compose.
+
+---
+
+## Tech Stack
+
+* Node.js
+* Express.js
+* MySQL 8
+* Redis 7
+* JWT Authentication
+* Docker
+* Docker Compose
+
+---
+
+## Project Structure
+
+```text
+.
+├── src
+│   ├── controllers
+│   ├── services
+│   ├── repositories
+│   ├── middleware
+│   ├── routes
+│   ├── config
+│   └── utils
+│
+├── database
+│   └── schema.sql
+│
+├── postman
+│   └── Team_Task_Tracker.postman_collection.json
+│
+├── Dockerfile
+├── docker-compose.yml
+├── package.json
+└── README.md
+```
+
+---
+
+## Setup Instructions
+
+### Prerequisites
+
+* Docker
+* Docker Compose
+
+### Run Application
+
+```bash
+docker compose up --build
+```
+
+Application:
+
+```text
+http://localhost:3000
+```
+
+MySQL:
+
+```text
+localhost:3307
+```
+
+Redis:
+
+```text
+localhost:6379
+```
+
+---
+
+## API Endpoints
+
+### Authentication
+
+| Method | Endpoint           |
+| ------ | ------------------ |
+| POST   | /api/auth/register |
+| POST   | /api/auth/login    |
+| POST   | /api/auth/refresh  |
+
+### Tasks
+
+| Method | Endpoint              |
+| ------ | --------------------- |
+| POST   | /api/tasks            |
+| GET    | /api/tasks            |
+| GET    | /api/tasks/:id        |
+| PATCH  | /api/tasks/:id/assign |
+| PATCH  | /api/tasks/:id/status |
+| DELETE | /api/tasks/:id        |
+
+---
 
 ## Database Schema
 
@@ -92,8 +157,8 @@ The collection includes:
 │ name                │
 │ created_at          │
 └──────────┬──────────┘
-           │ 1:N
            │
+           │ 1:N
            ▼
 
 ┌─────────────────────┐
@@ -108,7 +173,6 @@ The collection includes:
 │ created_at          │
 │ updated_at          │
 └──────┬────────┬─────┘
-       │        │
        │        │
        │        │ 1:N
        │        ▼
@@ -143,46 +207,106 @@ The collection includes:
 └─────────────────────┘
 ```
 
+---
+
+## Database Design Decision
+
+Tasks are scoped using the `organization_id` column to support multi-tenancy and ensure complete data isolation between organizations.
+
+Indexes were added on:
+
+* status
+* assignee_id
+* due_date
+
+A composite index on `(organization_id, status)` was also added because task listing queries frequently filter by organization and status together. This improves query performance and reduces full table scans as data volume grows.
+
+---
+
+## Caching Strategy
+
+Task list responses are cached in Redis on a per-assignee basis.
+
+Cache Key Pattern:
+
+```text
+tasks:assignee:<assigneeId>
+```
+
+### Cache Invalidation
+
+The cache is invalidated whenever:
+
+* A task is created
+* A task is deleted
+* A task is reassigned
+* A task status changes
+
+This ensures users always receive fresh task data while reducing database load.
+
+---
+
+## RBAC Rules
+
+### ADMIN
+
+* Manage users
+* Manage tasks
+* Manage assignments
+* Full access within organization
+
+### MANAGER
+
+* Create tasks
+* Assign tasks
+* Update task status
+* View organization tasks
+
+### MEMBER
+
+* View assigned tasks
+* Update status of assigned tasks only
+
+---
+
+## Error Response Format
+
+All API errors follow a consistent structure:
+
+```json
+{
+  "status": 400,
+  "code": "VALIDATION_ERROR",
+  "message": "due_date must be a future date"
+}
+```
+
+---
+
+## Postman Collection
+
+A Postman collection is included in:
+
+```text
+postman/Team_Task_Tracker.postman_collection.json
+```
+
+Import the collection into Postman to test all APIs.
+
+---
+
 ## Future Improvements
 
-Given more time, I would add the following enhancements:
+* Add automated unit and integration tests
+* Generate Swagger/OpenAPI documentation
+* Implement real-time notifications using WebSockets or SSE
+* Add audit logging for critical actions
+* Add monitoring and observability using metrics and centralized logging
+* Introduce background job processing for reminders and notifications
+* Add analytics dashboards for task completion and team productivity
 
-### 1. Automated Testing
+---
 
-Add comprehensive unit and integration tests for critical flows such as authentication, RBAC authorization, task assignment, and status transitions.
+## Author
 
-### 2. API Documentation
-
-Generate and maintain OpenAPI (Swagger) documentation to provide interactive API exploration and improve developer onboarding.
-
-### 3. Real-Time Notifications
-
-Implement WebSocket or Server-Sent Events (SSE) to notify users when tasks are assigned to them or when task statuses change.
-
-### 4. Advanced Caching
-
-Introduce selective cache invalidation and cache warming strategies to improve performance for high-traffic task listing endpoints.
-
-### 5. Audit Logging
-
-Track important actions such as task creation, assignment changes, status updates, and user management operations for compliance and troubleshooting.
-
-### 6. Background Job Processing
-
-Use a job queue (e.g., BullMQ) for asynchronous operations such as email notifications, reminders for overdue tasks, and scheduled maintenance tasks.
-
-### 7. Enhanced Security
-
-Implement rate limiting, account lockout policies, refresh token revocation lists, and secret management through a dedicated secrets manager.
-
-### 8. Monitoring and Observability
-
-Add centralized logging, metrics collection, health checks, and distributed tracing to improve production monitoring and debugging.
-
-### 9. Project Management Module
-
-Extend the system to support projects, project-level permissions, milestones, and reporting dashboards.
-
-### 10. Analytics Dashboard
-
-Provide reporting features such as overdue task counts, task completion trends, team productivity metrics, and average task completion time.
+Nishika Dogne
