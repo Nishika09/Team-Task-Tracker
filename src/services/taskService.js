@@ -1,6 +1,26 @@
 const taskRepository =
     require('../repositories/taskRepository');
 
+const allowedTransitions = {
+    TODO: [
+        'IN_PROGRESS',
+        'BLOCKED'
+    ],
+
+    IN_PROGRESS: [
+        'IN_REVIEW',
+        'BLOCKED'
+    ],
+
+    IN_REVIEW: [
+        'DONE',
+        'BLOCKED'
+    ],
+
+    DONE: [],
+
+    BLOCKED: []
+};
 const createTask = async (
     taskData,
     user
@@ -92,7 +112,129 @@ const getTasks = async (
     return result;
 };
 
+const updateTaskStatus = async (
+    taskId,
+    newStatus,
+    user
+) => {
+
+    const task =
+        await taskRepository.getTaskById(
+            taskId
+        );
+
+    if (!task) {
+        throw new Error(
+            'Task not found'
+        );
+    }
+
+    const isManager =
+        user.role === 'MANAGER';
+
+    const isAssignee =
+        task.assignee_id ===
+        user.userId;
+
+    if (
+        !isManager &&
+        !isAssignee
+    ) {
+        throw new Error(
+            'You cannot update this task'
+        );
+    }
+
+    const allowed =
+        allowedTransitions[
+        task.status
+        ];
+
+    if (
+        !allowed.includes(
+            newStatus
+        )
+    ) {
+        throw new Error(
+            `Invalid status transition from ${task.status} to ${newStatus}`
+        );
+    }
+
+    await taskRepository
+        .updateTaskStatus(
+            taskId,
+            newStatus
+        );
+
+    return {
+        message:
+            'Status updated successfully'
+    };
+};
+
+const getTaskById = async (
+    taskId,
+    user
+) => {
+
+    const task =
+        await taskRepository.getTaskById(
+            taskId
+        );
+
+    if (!task) {
+        throw new Error(
+            'Task not found'
+        );
+    }
+
+    if (
+        user.role === 'MEMBER' &&
+        task.assignee_id !== user.userId
+    ) {
+        throw new Error(
+            'Access denied'
+        );
+    }
+
+    return task;
+};
+
+const deleteTask = async (
+    taskId,
+    user
+) => {
+
+    const task =
+        await taskRepository.getTaskById(
+            taskId
+        );
+
+    if (!task) {
+        throw new Error(
+            'Task not found'
+        );
+    }
+
+    if (
+        task.organization_id !==
+        user.organizationId
+    ) {
+        throw new Error(
+            'Access denied'
+        );
+    }
+
+    await taskRepository.deleteTask(
+        taskId
+    );
+
+    return;
+};
 module.exports = {
     createTask,
-    getTasks
+    getTasks,
+    updateTaskStatus,
+    deleteTask,
+    getTaskById
 };

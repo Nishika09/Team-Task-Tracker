@@ -154,7 +154,58 @@ const getTasks = async (
     };
 };
 
+const getTaskById = async (taskId) => {
+
+    const query = `
+        SELECT *
+        FROM tasks
+        WHERE id = ?
+    `;
+
+    const [rows] =
+        await pool.execute(
+            query,
+            [taskId]
+        );
+
+    return rows[0];
+};
+
+const updateTaskStatus = async (
+    taskId,
+    status
+) => {
+
+    const query = `
+        UPDATE tasks
+        SET status = ?
+        WHERE id = ?
+    `;
+
+    await pool.execute(
+        query,
+        [status, taskId]
+    );
+};
+
+const deleteTask = async (
+    taskId
+) => {
+
+    const query = `
+        DELETE FROM tasks
+        WHERE id = ?
+    `;
+
+    await pool.execute(
+        query,
+        [taskId]
+    );
+};
 module.exports = {
     createTask,
-    getTasks
+    getTasks,
+    updateTaskStatus,
+    getTaskById,
+    deleteTask
 };
